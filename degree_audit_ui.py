@@ -70,14 +70,7 @@ def render_audit():
         f'{program.get("student", "")} | Catalog {program.get("catalog_year", "")} '
         f'| Advisor: {program.get("advisor", "")}'
     )
-    percent_complete = progress.get("percent_complete", 0)
-    percent_projected = progress.get("percent_projected", 0)
-
-    ui.label(f'Completed: {percent_complete}%')
-    ui.linear_progress(value=percent_complete / 100).classes("w-1/2")
-
-    ui.label(f'Projected with plan: {percent_projected}%')
-    ui.linear_progress(value=percent_projected / 100).classes("w-1/2")
+    render_bar_charts(progress)
 
     ui.separator()
 
@@ -87,6 +80,16 @@ def render_audit():
             f'{req["name"]} ({req["credits_completed"]}/{req["credits_required"]} credits{planned_note})'
         ).classes("w-full"):
             render_courses(req["id"], req["courses"])
+
+def render_bar_charts(progress):
+    percent_complete = progress.get("percent_complete", 0)
+    percent_projected = progress.get("percent_projected", 0)
+
+    ui.label(f'Completed: {percent_complete}%')
+    ui.linear_progress(value=percent_complete / 100, size="20px", show_value=False).classes("w-1/2")
+
+    ui.label(f'Projected with plan: {percent_projected}%')
+    ui.linear_progress(value=percent_projected / 100, size="20px", show_value=False,).classes("w-1/2")
 
 def render_courses(req_id: int, courses: list):
     for c in courses:
