@@ -31,7 +31,10 @@ STATUS_COLORS = {
     "needed": "text-red-700"
 }
 
-state = {"plan_mode": True}
+state = {"plan_mode": False}
+PLAN_COLOR_NAME = "orange"  # Quasar orange, shared by the plan border and plan progress bar
+PLAN_COLOR = "#ff9800"
+expanded = {}  # req_id -> open/closed, so refreshes keep dropdowns as they were
 
 
 def api_get(path: str):
@@ -57,6 +60,9 @@ def api_post(path: str, json: dict):
         ui.notify(detail or f"Request failed: {e}", type="negative")
         return False
 
+def set_plan_mode(e):
+    api_post("/mode", {"plan_mode": bool(e.value)})
+
 def add_to_plan(req_id: int, code: str):
     if api_post("/plan/add", {"req_id": req_id, "code": code}):
         render_audit.refresh()
@@ -67,6 +73,10 @@ def remove_from_plan(req_id: int, code: str):
 
 @ui.page("/")
 def main_page():
+    state["plan_mode"] = bool(api_get("/mode").get("plan_mode", False))
+    ui.element("div").classes(
+        f"fixed inset-0 pointer-events-none z-[9999] border-8 border-[{PLAN_COLOR}]"
+    ).bind_visibility_from(state, "plan_mode")
     render_audit()
 
 @ui.refreshable
@@ -86,16 +96,17 @@ def render_audit():
     ui.label(f'Completed: {percent_complete}%')
     ui.linear_progress(value=percent_complete / 100).classes("w-1/2")
 
-    ui.label(f'Projected with plan: {percent_projected}%')
-    ui.linear_progress(value=percent_projected / 100).classes("w-1/2")
+    ui.label(f'Projected with plan: {percent_projected}%').bind_visibility_from(state, "plan_mode")
+    ui.linear_progress(value=percent_projected / 100).props(f"color={PLAN_COLOR_NAME}").classes("w-1/2").bind_visibility_from(state, "plan_mode")
 
-    ui.switch("Plan Mode").bind_value(state, "plan_mode")
+    ui.switch("Plan Mode", on_change=set_plan_mode).bind_value(state, "plan_mode")
     ui.separator()
 
     for req in requirements:
-        planned_note = f' (+{req["credits_planned"]} planned)' if req["credits_planned"] else ""
+        planned_note = f' (+{req["credits_planned"]} needed)' if req["credits_planned"] else ""
         with ui.card().classes('no-shadow border border-gray-200 w-full max-w-3xl mx-auto'):
-            with ui.expansion(f'{req["name"]} ({req["credits_completed"]}/{req["credits_required"]} credits{planned_note})').classes("w-full"):
+            expanded.setdefault(str(req["id"]), False)
+            with ui.expansion(f'{req["name"]} ({req["credits_completed"]}/{req["credits_required"]} credits{planned_note})').classes("w-full").bind_value(expanded, str(req["id"])):
                 render_courses(req["id"], req["courses"])
 
 

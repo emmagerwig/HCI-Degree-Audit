@@ -48,6 +48,8 @@ PROGRAM = {
     "total_credits_completed": 78,
 }
 
+MODE = {"plan_mode": False}
+
 REQUIREMENTS = [
     {
         "id": 1,
@@ -110,6 +112,9 @@ REQUIREMENTS = [
 # Routes
 # ---------------------------------------------------------------------
 
+class ModeState(BaseModel):
+    plan_mode: bool
+
 class PlanAction(BaseModel):
     req_id: int
     code: str
@@ -169,6 +174,15 @@ def get_progress():
         "percent_projected": round(100 * projected / total_required, 1),
     }
 
+@app.get("/mode")
+def get_mode():
+    return {"plan_mode": MODE["plan_mode"]}
+
+@app.post("/mode")
+def set_mode(mode: ModeState):
+    MODE["plan_mode"] = mode.plan_mode
+    return {"plan_mode": MODE["plan_mode"]}
+
 @app.post("/plan/add")
 def add_to_plan(action: PlanAction):
     req = _get_requirement_or_404(action.req_id)
@@ -189,4 +203,4 @@ def remove_from_plan(action: PlanAction):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8002)
+    uvicorn.run(app, host="0.0.0.0", port=8002)
