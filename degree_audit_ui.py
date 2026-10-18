@@ -24,6 +24,16 @@ STATUS_LABELS = {
     "needed": "Needed",
 }
 
+STATUS_COLORS = {
+    "completed": "text-green-700",
+    "in_progress": "text-blue-700",
+    "planned": "text-amber-500",
+    "needed": "text-red-700"
+}
+
+state = {"plan_mode": True}
+
+
 def api_get(path: str):
     try:
         resp = requests.get(f"{API_BASE}{path}", timeout=5)
@@ -79,29 +89,40 @@ def render_audit():
     ui.label(f'Projected with plan: {percent_projected}%')
     ui.linear_progress(value=percent_projected / 100).classes("w-1/2")
 
+    ui.switch("Plan Mode").bind_value(state, "plan_mode")
     ui.separator()
 
     for req in requirements:
         planned_note = f' (+{req["credits_planned"]} planned)' if req["credits_planned"] else ""
-        with ui.expansion(
-            f'{req["name"]} ({req["credits_completed"]}/{req["credits_required"]} credits{planned_note})'
-        ).classes("w-full"):
-            render_courses(req["id"], req["courses"])
+        with ui.card().classes('no-shadow border border-gray-200 w-full max-w-3xl mx-auto'):
+            with ui.expansion(f'{req["name"]} ({req["credits_completed"]}/{req["credits_required"]} credits{planned_note})').classes("w-full"):
+                render_courses(req["id"], req["courses"])
+
 
 def render_courses(req_id: int, courses: list):
-    for c in courses:
-        status_text = STATUS_LABELS.get(c["status"], c["status"])
-        with ui.row().classes("items-center"):
-            ui.label(f'{c["code"]} - {c["title"]} ({c["credits"]} cr) - {status_text}')
-            if c["status"] == "needed":
-                ui.button(
-                    "+ Add to Plan",
-                    on_click=lambda req_id=req_id, code=c["code"]: add_to_plan(req_id, code),
-                )
-            elif c["status"] == "planned":
-                ui.button(
-                    "- Remove from Plan",
-                    on_click=lambda req_id=req_id, code=c["code"]: remove_from_plan(req_id, code),
-                )
+    with ui.grid(columns=4).classes("gap-0 w-full"):
+        
+        for c in courses:
+            status_text = STATUS_LABELS.get(c["status"], c["status"])
+            box = f'border p-2 {STATUS_COLORS[c["status"]]}'
+            ui.label(f'{c["code"]}: {c["title"]}').classes(box)
+            ui.label(f'Credits: {c["credits"]}').classes(box)
+            ui.label(status_text).classes(box)   
 
+            if c["status"] == "needed":
+                with ui.element("div").classes("w-full h-full"):
+                    ui.button(
+                        "+ Add to Plan",
+                        on_click=lambda req_id=req_id, code=c["code"]: add_to_plan(req_id, code),
+                    ).classes("w-full h-full").bind_visibility_from(state,"plan_mode")
+                    
+            elif c["status"] == "planned":
+                with ui.element("div").classes("w-full h-full"):
+                    ui.button(
+                        "- Remove from Plan",
+                        on_click=lambda req_id=req_id, code=c["code"]: remove_from_plan(req_id, code),
+                    ).classes("w-full h-full").bind_visibility_from(state,"plan_mode")
+            else:
+                ui.label("")    
+                
 ui.run(port=8081, title="Mock Degree Audit")
