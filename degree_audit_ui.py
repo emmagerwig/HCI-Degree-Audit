@@ -162,11 +162,11 @@ def render_audit():
 
 
     ui.label(f'Completed: {percent_complete}%')
-    ui.linear_progress(value=percent_complete / 100).classes("w-1/2")
+    ui.linear_progress(value=percent_complete / 100, size="20px", show_value=False).classes("w-1/2")
 
     # Brendan: projected bar only shows in plan mode, in the plan color
     ui.label(f'Projected with plan: {percent_projected}%').bind_visibility_from(state, "plan_mode")
-    ui.linear_progress(value=percent_projected / 100).props(f"color={PLAN_COLOR_NAME}").classes("w-1/2").bind_visibility_from(state, "plan_mode")
+    ui.linear_progress(value=percent_projected / 100, size="20px", show_value=False).props(f"color={PLAN_COLOR_NAME}").classes("w-1/2").bind_visibility_from(state, "plan_mode")
 
     # Kaitlyn: Brendan's Plan Mode switch was here, moved to render_mode_toggle() in the header
 
