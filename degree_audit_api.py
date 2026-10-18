@@ -17,6 +17,9 @@ Endpoints:
     GET  /progress
     POST /plan/add      body: {"req_id": int, "code": str}
     POST /plan/remove   body: {"req_id": int, "code": str}
+
+    GET /semesters returns array of semester objects that contain courses
+    GET /course_availability returns
 """
 
 from fastapi import FastAPI, HTTPException
