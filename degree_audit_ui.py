@@ -89,7 +89,7 @@ def render_bar_charts(progress):
     ui.linear_progress(value=percent_complete / 100, size="20px", show_value=False).classes("w-1/2")
 
     ui.label(f'Projected with plan: {percent_projected}%')
-    ui.linear_progress(value=percent_projected / 100, size="20px", show_value=False,).classes("w-1/2")
+    ui.linear_progress(value=percent_projected / 100, size="20px", show_value=False,).classes("w-1/2 amber-500")
 
 def render_courses(req_id: int, courses: list):
     for c in courses:
