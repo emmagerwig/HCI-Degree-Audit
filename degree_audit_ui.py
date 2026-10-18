@@ -40,6 +40,13 @@ state = {"plan_mode": False}
 # Brendan: plan mode styling shared by the border and the projected bar
 PLAN_COLOR_NAME = "orange"  # Quasar orange
 PLAN_COLOR = "#ff9800"
+# thin line between the header and the expanded content
+ui.add_css(
+    ".req-expansion .q-expansion-item__content { border-top: 1px solid #e5e7eb; }"
+    ".req-expansion .q-item { padding-right: 4px; }"  # pushes the caret to the card's right edge
+    ".req-expansion .q-item__section--side { padding: 0; min-width: 0; }",
+    shared=True,
+)
 expanded = {}  # Brendan: req_id -> open/closed, so refreshes keep dropdowns as they were
 
 
@@ -70,7 +77,9 @@ def api_post(path: str, json: dict):
 
 # Brendan: saves the plan mode choice to the API
 def set_plan_mode(e):
-    api_post("/mode", {"plan_mode": bool(e.value)})
+    state["plan_mode"] = bool(e.value)
+    api_post("/mode", {"plan_mode": state["plan_mode"]})
+    render_audit.refresh()  # course rows show planned classes as needed when plan mode is off
 
 
 # Kaitlyn: new helper so the body and the header summary update together
@@ -174,37 +183,70 @@ def render_audit():
 
 
     for req in requirements:
-        planned_note = f' (+{req["credits_planned"]} planned)' if req["credits_planned"] else ""
-        with ui.card().classes('no-shadow border border-gray-200 w-full mx-auto'):
+        planned = sum(1 for c in req["courses"] if c["status"] == "planned")
+        needed = sum(1 for c in req["courses"] if c["status"] == "needed")
+
+        def needed_text(plan_mode: bool, needed=needed, planned=planned) -> str:
+            # outside plan mode, planned courses still count as needed
+            count = needed if plan_mode else needed + planned
+            return f"+{count} classes needed" if count else ""
+
+        def planned_text(plan_mode: bool, planned=planned) -> str:
+            return f"+{planned} classes planned" if plan_mode and planned else ""
+
+        with ui.card().classes('shadow-lg border border-gray-200 w-full mx-auto !p-0 !gap-0 overflow-hidden'):
             # Kaitlyn: dropped max-w-3xl here since the parent column
             # already sets the width; w-full keeps the cards aligned with it, can be overridden by the parent column if needed
             # Brendan: expanded dict keeps each dropdown open/closed across refreshes
             expanded.setdefault(str(req["id"]), False)
-            with ui.expansion(
-                f'{req["name"]} ({req["credits_completed"]}/{req["credits_required"]} credits{planned_note})'
-            ).classes("w-full").bind_value(expanded, str(req["id"])):
+            with ui.expansion().classes("w-full req-expansion").bind_value(expanded, str(req["id"])) as exp:
+                # header: category name, credits, then needed/planned boxes
+                with exp.add_slot("header"):
+                    with ui.column().classes("gap-0 grow"):
+                        ui.label(req["name"]).classes("text-xl font-bold")
+                        ui.label(f'{req["credits_completed"]}/{req["credits_required"]} credits')
+                        # needed (table's red) and planned (plan mode orange) as side-by-side boxes
+                        with ui.row().classes("gap-2 mt-1"):
+                            if req["credits_completed"] >= req["credits_required"]:
+                                ui.label("Completed \u2713").classes("rounded px-2 py-1 text-white bg-green-700")
+                            ui.label().bind_text_from(
+                                state, "plan_mode", backward=needed_text
+                            ).bind_visibility_from(
+                                state, "plan_mode", backward=lambda m, f=needed_text: bool(f(m))
+                            ).classes("rounded px-2 py-1 text-white bg-red-700")
+                            ui.label().bind_text_from(
+                                state, "plan_mode", backward=planned_text
+                            ).bind_visibility_from(
+                                state, "plan_mode", backward=lambda m, f=planned_text: bool(f(m))
+                            ).classes("rounded px-2 py-1 text-white").style(f"background-color: {PLAN_COLOR}")
                 render_courses(req["id"], req["courses"])
 
 
 def render_courses(req_id: int, courses: list):
-    with ui.grid(columns=4).classes("gap-0 w-full"):
+    with ui.element("div").classes("w-full p-4"), ui.grid(columns=4).classes("gap-0 w-full bg-white"):
+        # column headers, so the cells below don't need to repeat units
+        for heading in ("Course", "Credits", "Status", ""):
+            # the blank button-column header gets no border, so it's invisible
+            ui.label(heading).classes("border p-2 text-center font-bold" if heading else "p-2")
         for c in courses:
-            status_text = STATUS_LABELS.get(c["status"], c["status"])
-            box = f'border p-2 {STATUS_COLORS[c["status"]]}'
+            # outside plan mode, planned classes are displayed as needed
+            status = "needed" if c["status"] == "planned" and not state["plan_mode"] else c["status"]
+            status_text = STATUS_LABELS.get(status, status)
+            box = f'border p-2 {STATUS_COLORS[status]}'
             ui.label(f'{c["code"]}: {c["title"]}').classes(box)
-            ui.label(f'Credits: {c["credits"]}').classes(box)
+            ui.label(f'{c["credits"]}').classes(box)
             ui.label(status_text).classes(box)
 
             # todo?: buttons are only visible in plan mode
             # need to remove the "planned" state in normal mode
-            if c["status"] == "needed":
-                with ui.element("div").classes("w-full h-full"):
+            if status == "needed":
+                with ui.element("div").classes("w-full h-full pl-2 py-1"):
                     ui.button(
                         "+ Add to Plan",
                         on_click=lambda req_id=req_id, code=c["code"]: add_to_plan(req_id, code),
                     ).classes("w-full h-full").bind_visibility_from(state, "plan_mode")
-            elif c["status"] == "planned":
-                with ui.element("div").classes("w-full h-full"):
+            elif status == "planned":
+                with ui.element("div").classes("w-full h-full pl-2 py-1"):
                     ui.button(
                         "- Remove from Plan",
                         on_click=lambda req_id=req_id, code=c["code"]: remove_from_plan(req_id, code),
