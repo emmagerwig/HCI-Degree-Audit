@@ -29,7 +29,7 @@ STATUS_LABELS = {
 STATUS_COLORS = {
     "completed": "text-green-700",
     "in_progress": "text-blue-700",
-    "planned": "text-amber-500",
+    "planned": "text-orange-500",
     "needed": "text-red-700",
 }
 
@@ -39,7 +39,8 @@ state = {"plan_mode": False}
 
 # Brendan: plan mode styling shared by the border and the projected bar
 PLAN_COLOR_NAME = "orange"  # Quasar orange
-PLAN_COLOR = "#ff9800"
+PLAN_COLOR = "#f97316" # Mag- had to change plan color so that it would match up with text color
+
 # thin line between the header and the expanded content
 ui.add_css(
     ".req-expansion .q-expansion-item__content { border-top: 1px solid #e5e7eb; }"
@@ -232,7 +233,7 @@ def render_courses(req_id: int, courses: list):
             # outside plan mode, planned classes are displayed as needed
             status = "needed" if c["status"] == "planned" and not state["plan_mode"] else c["status"]
             status_text = STATUS_LABELS.get(status, status)
-            box = f'border p-2 {STATUS_COLORS[status]}'
+            box = f'border border-black p-2 {STATUS_COLORS[status]}'
             ui.label(f'{c["code"]}: {c["title"]}').classes(box)
             ui.label(f'{c["credits"]}').classes(box)
             ui.label(status_text).classes(box)
